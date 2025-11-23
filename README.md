@@ -10,8 +10,8 @@ Este proyecto realiza scraping del sitio **Books to Scrape** usando:
 ## 🚀 Instalación
 
 ```bash
-git clone https://tu-repo.git
-cd tu-proyecto
+git clone [https://tu-repo.git](https://github.com/jacktravolta/scraper-libros)
+cd scraper-libros
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
