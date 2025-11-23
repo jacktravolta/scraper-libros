@@ -10,7 +10,7 @@ Este proyecto realiza scraping del sitio **Books to Scrape** usando:
 ## 🚀 Instalación
 
 ```bash
-git clone [https://tu-repo.git](https://github.com/jacktravolta/scraper-libros)
+git clone https://github.com/jacktravolta/scraper-libros
 cd scraper-libros
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
@@ -29,7 +29,7 @@ RUTA_BD=data/libros.db
 ## ▶️ Ejecución
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 El programa permitirá elegir método:
@@ -77,7 +77,7 @@ Actualiza detalles del libro (descripción, UPC, categoría).
 
 ## 📝 Logs
 
-Todos los mensajes se guardan en el archivo definido en `.env`, por defecto:
+Todos los mensajes se guardan en el archivo definido en `.env`, por defecto: logs
 
 ```
 logs.log
@@ -96,4 +96,5 @@ selenium
 ---
 
 ## ✨ Autor
-Scraper automatizado desarrollado/implementado por Juan Espinoza.
+Proyecto Scraper de libros, diseñado y desarrollado por Juan Espinoza Castro. Contacto: juan.espinoza.castro88@gmail.com
+
