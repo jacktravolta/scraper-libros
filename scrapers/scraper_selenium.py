@@ -11,6 +11,7 @@ import os
 # Leer URL desde .env, por si algún día quieres cambiar de sitio
 BASE = os.getenv("URL_DESTINO", "https://books.toscrape.com/")
 N_PAGINA = int(os.getenv("N_PAGINA", 4)) + 1
+LIBROS_X_PAGINA = int(os.getenv("LIBROS_X_PAGINA", 5))
 
 def scraper_selenium():
     """
@@ -20,7 +21,7 @@ def scraper_selenium():
 
     # Configurar Selenium en modo oculto
     opciones = Options()
-    #opciones.add_argument("--headless")
+    opciones.add_argument("--headless")
 
     print("🟦 Iniciando Selenium (modo headless)...")
     log("INFO", "Iniciando Selenium...")
@@ -51,7 +52,7 @@ def scraper_selenium():
             log("DEBUG", f"{len(items)} libros encontrados en página {pagina}")
 
             # Extraer información de cada libro
-            for it in items:
+            for it in items[:LIBROS_X_PAGINA]:
                 # Título
                 titulo = (
                     it.find_element(By.TAG_NAME, "h3")
@@ -96,12 +97,12 @@ def scraper_selenium():
             log("ERROR", f"Error en Selenium página {pagina}: {e}")
 
     # ---------------------------------------------
-    # SCRAPING DE DETALLE (5 primeros)
+    # SCRAPING DE DETALLE 
     # ---------------------------------------------
-    print("\n🔍 Procesando detalles de los primeros 5 libros...")
+    print(f"\n🔍 Procesando detalles de los primeros {LIBROS_X_PAGINA} libros...")
     log("INFO", "Iniciando scraping de detalles...")
 
-    for enlace in enlaces[:5]:
+    for enlace in enlaces[:LIBROS_X_PAGINA]:
         try:
             print(f"\n➡️ Abriendo detalle: {enlace}")
             log("INFO", f"Abriendo detalle: {enlace}")

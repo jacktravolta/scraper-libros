@@ -4,7 +4,6 @@ from utils.logger import log
 RUTA_BD = os.getenv("RUTA_BD", "data/libros.db")
 
 def conectar():
-    log("INFO", f"Conectando a la base de datos en {RUTA_BD}...")
     return sqlite3.connect(RUTA_BD)
 
 # -----------------------------
@@ -88,7 +87,7 @@ def guardar_libro(libro):
         if existe_libro(titulo):
             log("INFO", f"Se omitió guardar porque ya existe: {titulo}")
             print(f"⏩ Se omite (duplicado): {titulo}")
-            return  # seguir ejecutando sin error
+            return
 
         conn = conectar()
         cur = conn.cursor()

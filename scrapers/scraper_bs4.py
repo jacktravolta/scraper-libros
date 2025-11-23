@@ -10,11 +10,12 @@ from utils.logger import log
 # Leer URL base desde variable de entorno (.env)
 BASE = os.getenv("URL_DESTINO", "https://books.toscrape.com/")
 N_PAGINA = int(os.getenv("N_PAGINA", 4)) + 1
+LIBROS_X_PAGINA = int(os.getenv("LIBROS_X_PAGINA", 5))
 
 def scraper_bs4():
     """
     Scraper usando requests + BeautifulSoup.
-    Extrae información de las primeras 3 páginas, guarda libros
+    Extrae información del numero de paginas definidas en .env, guarda libros
     y luego procesa detalles de los primeros 5.
     """
 
@@ -50,7 +51,7 @@ def scraper_bs4():
             print(f"   ✔ {len(articulos)} libros encontrados")
             log("DEBUG", f"{len(articulos)} libros encontrados en página {pagina}")
 
-            for articulo in articulos:
+            for articulo in articulos[:LIBROS_X_PAGINA]:
 
                 # Extraer datos del libro
                 titulo = articulo.h3.a["title"]
@@ -79,10 +80,10 @@ def scraper_bs4():
             log("ERROR", f"Error procesando página {pagina}: {e}")
 
     # --- Procesar detalles ---
-    print("\n🔍 Iniciando scraping de detalles de libros...")
+    print(f"\n🔍 Procesando detalles de los primeros {LIBROS_X_PAGINA} libros...")
     log("INFO", "Iniciando scraping de detalles de libros")
 
-    for enlace in enlaces_detalle[:5]:
+    for enlace in enlaces_detalle[:LIBROS_X_PAGINA]:
 
         print(f"\n➡️ Procesando detalle: {enlace}")
         log("INFO", f"Procesando detalle: {enlace}")
