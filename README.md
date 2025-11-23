@@ -20,6 +20,8 @@ pip install -r requirements.txt
 ## ⚙️ Variables de entorno (.env)
 
 ```
+DELAY_SEGUNDOS=2
+LOG_NIVEL=INFO
 URL_DESTINO=https://books.toscrape.com/
 N_PAGINA=4
 LOG_ARCHIVO=logs.log
