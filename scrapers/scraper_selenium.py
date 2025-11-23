@@ -126,9 +126,9 @@ def scraper_selenium():
             # Título en detalle
             titulo = driver.find_element(By.TAG_NAME, "h1").text
 
-            print(f"   📙 Actualizando libro: {titulo}")
+            print(f"   ✏️ Actualizando libro: {titulo}")
             log("INFO", f"Actualizando detalles de: {titulo}")
-
+            log("DEBUG", f"UPC={upc}, Categoría={categoria}")
             # Actualizar en la base
             actualizar_libro(titulo, descripcion, upc, categoria)
 
@@ -141,8 +141,8 @@ def scraper_selenium():
             print("❌ Error procesando detalle")
             log("ERROR", f"Error en detalle Selenium: {e}")
 
+    print("\n🏁 Scraping Selenium finalizado.")
+    log("INFO", "Scraping Selenium finalizado")
+    
     # Cerrar Selenium
-    print("\n🛑 Cerrando Selenium...")
-    log("INFO", "Finalizando Selenium")
-
     driver.quit()
