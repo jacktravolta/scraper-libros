@@ -82,12 +82,14 @@ def scraper_selenium():
 
                 print(f"   📘 Libro: {titulo}")
                 log("INFO", f"Libro encontrado: {titulo}")
+                log("DEBUG", f"Precio={precio}, Rating={rating}, URL={enlace}")
 
                 # Crear objeto y guardar
                 libro = crear_libro(titulo, precio, disponibilidad, rating, imagen_url)
+                
+                # Guardarlo en BD
                 guardar_libro(libro)
 
-               
                 enlaces.append(enlace)
 
                 esperar()
