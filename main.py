@@ -38,7 +38,6 @@ if __name__ == "__main__":
     print("Inicializando sistema...\n")
 
     # Crear .env con datos predeterminados si no existe
-    print("✔ .env verificado / creado.")
     crear_env_si_no_existe()
 
     # Crear archivo de log si no existe
