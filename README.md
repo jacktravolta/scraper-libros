@@ -79,7 +79,7 @@ Actualiza detalles del libro (descripción, UPC, categoría).
 
 ## 📝 Logs
 
-Todos los mensajes se guardan en el archivo definido en `.env`, por defecto: logs
+Todos los mensajes se guardan en el archivo definido en `.env`, por defecto: 
 
 ```
 logs.log
