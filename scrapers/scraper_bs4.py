@@ -111,7 +111,7 @@ def scraper_bs4():
             print(f"   ✏️ Actualizando libro: {titulo}")
             log("INFO", f"Actualizando libro: {titulo}")
             log("DEBUG", f"UPC={upc}, Categoría={categoria}")
-
+            # Actualizar en la base
             actualizar_libro(titulo, descripcion, upc, categoria)
 
             print("   ✔ Datos de detalle actualizados")
