@@ -30,10 +30,8 @@ def crear_env_si_no_existe():
     if not os.path.exists(ENV_FILE):
         with open(ENV_FILE, "w", encoding="utf-8") as f:
             f.write(ENV_DEFAULTS)
-        print(f"✅ Archivo {ENV_FILE} creado con valores predeterminados.")
-    else:
-        print(f"ℹ️ Archivo {ENV_FILE} ya existe, no se realizó ningún cambio.")
-
+        print(f"✔ Archivo {ENV_FILE} creado con valores predeterminados.")
+    
 def obtener_rating(texto):
     mapa = {
         "One": 1,
@@ -43,4 +41,3 @@ def obtener_rating(texto):
         "Five": 5
     }
     return mapa.get(texto, 0)
-
