@@ -1,55 +1,70 @@
-import sqlite3, os
+import sqlite3
+import os
 from utils.logger import log
 
+# Ruta a la base de datos SQLite (tomada desde variable de entorno)
 RUTA_BD = os.getenv("RUTA_BD", "data/libros.db")
 
+
+# ------------------------------------------------
+# CONEXIÓN A LA BASE DE DATOS
+# ------------------------------------------------
 def conectar():
+    """Conecta a la base de datos SQLite y devuelve la conexión."""
     return sqlite3.connect(RUTA_BD)
 
-# -----------------------------
-# VERIFICAR SI YA EXISTE EL LIBRO
-# -----------------------------
-def existe_libro(titulo):
-    conn = None  
 
+# ------------------------------------------------
+# VERIFICAR SI UN LIBRO YA EXISTE EN LA BD
+# ------------------------------------------------
+def existe_libro(titulo):
+    conn = None
     try:
         conn = conectar()
         cur = conn.cursor()
 
-        log("INFO", f"Verificando si el libro ya existe: {titulo}")
-        print(f"🔍 Verificando existencia: {titulo}")
+        log("INFO", f"Verificando existencia del libro: {titulo}")
+        print(f"\n🔍 Verificando existencia: {titulo}")
 
-        cur.execute("SELECT id FROM libros WHERE titulo = ?", (titulo,))
+        # Consulta simple para comprobar si el título ya está registrado
+        cur.execute("SELECT 1 FROM libros WHERE titulo = ? LIMIT 1", (titulo,))
         existe = cur.fetchone() is not None
 
-        if existe:
-            log("INFO", f"El libro YA existe en la BD: {titulo}")
-        else:
-            log("INFO", f"El libro NO existe en la BD: {titulo}")
+        msg = "YA existe" if existe else "NO existe"
+        log("INFO", f"El libro {msg} en la BD: {titulo}")
 
         return existe
 
     except Exception as e:
-        print(f"❌ Error verificando libro {titulo}: {e}")
+        # Manejo de errores durante la verificación
         log("ERROR", f"Error al verificar existencia: {e}")
+        print(f"❌ Error verificando libro {titulo}: {e}")
         return False
 
     finally:
-        if conn is not None:
+        # Se cierra siempre la conexión
+        if conn:
             conn.close()
 
-# -----------------------------
-# CREACIÓN DE TABLAS
-# -----------------------------
+
+# ------------------------------------------------
+# CREACIÓN DE TABLAS SI NO EXISTEN
+# ------------------------------------------------
 def crear_tablas():
     conn = None
     try:
-        log("INFO", "Creando tablas si no existen...")
         conn = conectar()
         cur = conn.cursor()
 
+        # Comprueba si la tabla libros ya existe
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='libros';")
+        if cur.fetchone():
+            log("INFO", "La tabla 'libros' ya existe. No se creó nuevamente.")
+            return
+
+        # Creación de la tabla con todos los campos necesarios
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS libros (
+            CREATE TABLE libros (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 titulo TEXT UNIQUE,
                 precio DECIMAL(10,2),
@@ -64,63 +79,70 @@ def crear_tablas():
         """)
 
         conn.commit()
-        log("INFO", "Tablas creadas correctamente.")
+        log("INFO", "Tabla 'libros' creada correctamente.")
+
     except Exception as e:
-        log("ERROR", f"Error al crear tablas: {e}")
+        # Registra cualquier error durante la creación
+        log("ERROR", f"Error al crear tabla: {e}")
+
     finally:
-        if conn is not None:
+        if conn:
             conn.close()
 
-# -----------------------------
-# GUARDAR LIBRO
-# -----------------------------
-def guardar_libro(libro):
-    conn = None  
 
+# ------------------------------------------------
+# GUARDAR LIBRO EN LA BD (EVITA DUPLICADOS)
+# ------------------------------------------------
+def guardar_libro(libro):
+    conn = None
     try:
-        titulo = libro["titulo"]
-        libro["precio"] = libro["precio"].replace("Â", "€")
+        titulo = libro.get("titulo", "")
+
+        # A veces BS4 trae caracteres raros; se normaliza el precio aquí
+        libro["precio"] = libro.get("precio", "").replace("Â", "€")
 
         log("INFO", f"Intentando guardar libro: {titulo}")
 
-        # Evitar duplicados antes de conectar
+        # Verifica primero si ya existe el libro
         if existe_libro(titulo):
-            log("INFO", f"Se omitió guardar porque ya existe: {titulo}")
+            log("INFO", f"Omitido por duplicado: {titulo}")
             print(f"⏩ Se omite (duplicado): {titulo}")
             return
 
         conn = conectar()
         cur = conn.cursor()
 
-        log("INFO", f"Insertando libro en la BD: {titulo}")
-
+        # Inserta los datos básicos
         cur.execute("""
-            INSERT INTO libros (
-                titulo, precio, disponibilidad, rating, url_imagen
-            ) VALUES (?, ?, ?, ?, ?)
+            INSERT INTO libros (titulo, precio, disponibilidad, rating, url_imagen)
+            VALUES (?, ?, ?, ?, ?)
         """, (
-            libro["titulo"], libro["precio"], libro["disponibilidad"],
-            libro["rating"], libro["imagen_url"]
+            titulo,
+            libro.get("precio", "0.00"),
+            libro.get("disponibilidad", ""),
+            libro.get("rating", 0),
+            libro.get("imagen_url", "")
         ))
 
         conn.commit()
+
         log("INFO", f"Libro guardado correctamente: {titulo}")
-        
-        if existe_libro(titulo):
-            print(f"💾 Guardado en DB: {titulo}")
+        print(f"💾 Guardado en DB: {titulo}")
 
     except Exception as e:
+        # Manejo de errores en la inserción
         log("ERROR", f"Error al guardar libro: {e}")
         print(f"❌ Error al guardar {titulo}: {e}")
 
     finally:
-        if conn is not None:
+        if conn:
             conn.close()
 
-# -----------------------------
-# ACTUALIZAR LIBRO
-# -----------------------------
-def actualizar_libro(titulo, descripcion, upc, categoria):
+
+# ------------------------------------------------
+# ACTUALIZAR DETALLES DEL LIBRO (DESCRIPCIÓN, UPC, CATEGORÍA)
+# ------------------------------------------------
+def actualizar_libro(titulo, descripcion="", upc="", categoria=""):
     conn = None
     try:
         log("INFO", f"Actualizando libro: {titulo}")
@@ -128,6 +150,7 @@ def actualizar_libro(titulo, descripcion, upc, categoria):
         conn = conectar()
         cur = conn.cursor()
 
+        # Actualiza los campos de detalle
         cur.execute("""
             UPDATE libros
             SET descripcion = ?, upc = ?, categoria = ?
@@ -136,6 +159,7 @@ def actualizar_libro(titulo, descripcion, upc, categoria):
 
         conn.commit()
 
+        # rowcount indica si afectó alguna fila
         if cur.rowcount == 0:
             log("WARNING", f"No se encontró el libro para actualizar: {titulo}")
         else:
@@ -143,6 +167,7 @@ def actualizar_libro(titulo, descripcion, upc, categoria):
 
     except Exception as e:
         log("ERROR", f"Error al actualizar libro: {e}")
+
     finally:
-        if conn is not None:
+        if conn:
             conn.close()
