@@ -1,148 +1,176 @@
+import os
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+
+# Funciones propias del proyecto
 from models.libro_modelo import crear_libro
 from db.base_datos import guardar_libro, actualizar_libro
 from utils.logger import log
 from utils.helpers import obtener_rating
 from utils.tiempos import esperar
-import os
 
-# Leer URL desde .env, por si algún día quieres cambiar de sitio
+# -------------------------------------------------------------
+# CONFIGURACIÓN DEL SCRAPER DESDE VARIABLES DE ENTORNO
+# -------------------------------------------------------------
+
+# URL base del sitio a scrapear
 BASE = os.getenv("URL_DESTINO", "https://books.toscrape.com/")
+
+# Número total de páginas a procesar (se suma 1 porque range() es exclusivo del final)
 N_PAGINA = int(os.getenv("N_PAGINA", 4)) + 1
-LIBROS_X_PAGINA = int(os.getenv("LIBROS_X_PAGINA", 5))
+
+# Cantidad de libros cuyos detalles se abrirán de forma aleatoria
+LIBROS_NAVEGA_DETALLE = int(os.getenv("LIBROS_NAVEGA_DETALLE", 5))
+
 
 def scraper_selenium():
     """
-    Scraper con Selenium: extrae libros del numeo de paginas definidos en .env
-    y luego entra al detalle de los primeros 5 para obtener más info.
+    Scraper principal usando Selenium.
+
+    Fase 1: Recorre las páginas del catálogo, extrae datos básicos y los guarda.
+    Fase 2: Selecciona libros aleatoriamente y abre sus páginas de detalle,
+            extrayendo información adicional (descripcion, UPC, categoria).
     """
 
-    # Configurar Selenium en modo oculto
+    # Configura Chrome en modo headless (sin ventana visible)
     opciones = Options()
     opciones.add_argument("--headless")
 
-    print("🟦 Iniciando Selenium (modo headless)...")
+    print("➡️ Iniciando Selenium (modo headless)...")
     log("INFO", "Iniciando Selenium...")
 
-    # Crear driver
+    # Inicia el driver de Chrome
     driver = webdriver.Chrome(options=opciones)
+    enlaces_detalle = []  # Guarda enlaces individuales de cada libro
 
-    # Guardamos aquí los enlaces para procesar detalle
-    enlaces = []
-
-    # ---------------------------------------------
-    # SCRAPING DE LISTA DE LIBROS
-    # ---------------------------------------------
+    # ---------------------------------------------------------
+    # 📌 1. SCRAPING DE LA LISTA DE LIBROS
+    # ---------------------------------------------------------
     for pagina in range(1, N_PAGINA):
         try:
-            url = BASE + f"catalogue/page-{pagina}.html"
-
+            url = f"{BASE}catalogue/page-{pagina}.html"
             print(f"\n📄 Cargando página {pagina}: {url}")
             log("INFO", f"Cargando página: {url}")
 
-            # Abrir página
             driver.get(url)
 
-            # Obtener lista de productos
-            items = driver.find_elements(By.CSS_SELECTOR, "article.product_pod")
+            # Obtiene los artículos que representan libros
+            articulos = driver.find_elements(By.CSS_SELECTOR, "article.product_pod")
 
-            print(f"   → {len(items)} libros encontrados")
-            log("DEBUG", f"{len(items)} libros encontrados en página {pagina}")
+            print(f"   → {len(articulos)} libros encontrados")
+            log("DEBUG", f"{len(articulos)} libros encontrados en página {pagina}")
 
-            # Extraer información de cada libro
-            for it in items[:LIBROS_X_PAGINA]:
-                # Título
-                titulo = (
-                    it.find_element(By.TAG_NAME, "h3")
-                    .find_element(By.TAG_NAME, "a")
-                    .get_attribute("title")
-                )
+            # Procesa cada libro encontrado
+            for articulo in articulos:
+                try:
+                    # ---------- TÍTULO ----------
+                    titulo_tag = articulo.find_element(By.TAG_NAME, "h3").find_element(By.TAG_NAME, "a")
+                    titulo = titulo_tag.get_attribute("title") if titulo_tag else ""
+                    if not titulo:
+                        log("WARNING", "No se encontró título de un libro")
+                        continue
 
-                # Precio
-                precio = it.find_element(By.CSS_SELECTOR, ".price_color").text.replace("£", "")
+                    # ---------- PRECIO ----------
+                    precio_tag = articulo.find_elements(By.CSS_SELECTOR, ".price_color")
+                    precio = precio_tag[0].text.replace("£", "") if precio_tag else "0.00"
 
-                # Disponibilidad
-                disponibilidad = it.find_element(By.CSS_SELECTOR, ".availability").text.strip()
+                    # ---------- DISPONIBILIDAD ----------
+                    disponibilidad_tag = articulo.find_elements(By.CSS_SELECTOR, ".availability")
+                    disponibilidad = disponibilidad_tag[0].text.strip() if disponibilidad_tag else ""
 
-                # Rating
-                clase = it.find_element(By.CSS_SELECTOR, "p.star-rating").get_attribute("class").split()[1]
-                rating = obtener_rating(clase)
+                    # ---------- RATING ----------
+                    rating_tag = articulo.find_elements(By.CSS_SELECTOR, "p.star-rating")
+                    rating = obtener_rating(rating_tag[0].get_attribute("class").split()[1]) if rating_tag else 0
 
-                # Imagen
-                imagen_url = it.find_element(By.TAG_NAME, "img").get_attribute("src")
+                    # ---------- IMAGEN ----------
+                    imagen_tag = articulo.find_elements(By.TAG_NAME, "img")
+                    imagen_url = imagen_tag[0].get_attribute("src") if imagen_tag else ""
 
-                # Link a detalle
-                enlace = (
-                    it.find_element(By.TAG_NAME, "h3")
-                    .find_element(By.TAG_NAME, "a")
-                    .get_attribute("href")
-                )
+                    # ---------- ENLACE AL DETALLE ----------
+                    enlace = titulo_tag.get_attribute("href") if titulo_tag else ""
 
-                print(f"   📘 Libro: {titulo}")
-                log("INFO", f"Libro encontrado: {titulo}")
-                log("DEBUG", f"Precio={precio}, Rating={rating}, URL={enlace}")
+                    log("INFO", f"Libro encontrado: {titulo}")
+                    log("DEBUG", f"Precio={precio}, Rating={rating}, URL={enlace}")
 
-                # Crear objeto y guardar
-                libro = crear_libro(titulo, precio, disponibilidad, rating, imagen_url)
-                
-                # Guardarlo en BD
-                guardar_libro(libro)
+                    # Crea objeto libro y lo guarda en la BD
+                    libro = crear_libro(titulo, precio, disponibilidad, rating, imagen_url)
+                    guardar_libro(libro)
 
-                enlaces.append(enlace)
+                    enlaces_detalle.append(enlace)
 
-                esperar()
+                except Exception as e:
+                    print(f"❌ Error extrayendo libro en página {pagina}: {e}")
+                    log("ERROR", f"Error extrayendo libro en página {pagina}: {e}")
 
         except Exception as e:
-            print(f"❌ Error procesando página {pagina}")
+            print(f"❌ Error procesando página {pagina}: {e}")
             log("ERROR", f"Error en Selenium página {pagina}: {e}")
 
-    # ---------------------------------------------
-    # SCRAPING DE DETALLE 
-    # ---------------------------------------------
-    print(f"\n🔍 Procesando detalles de los primeros {LIBROS_X_PAGINA} libros...")
-    log("INFO", "Iniciando scraping de detalles...")
+        # Espera aleatoria para evitar bloqueos del sitio
+        esperar()
 
-    for enlace in enlaces[:LIBROS_X_PAGINA]:
+    # ---------------------------------------------------------
+    # 📌 2. SCRAPING DE PÁGINA DE DETALLE DEL LIBRO
+    # ---------------------------------------------------------
+
+    total_detalle = min(LIBROS_NAVEGA_DETALLE, len(enlaces_detalle))
+    print(f"\n🔍 Procesando detalle aleatorio de {total_detalle} libro{'s' if total_detalle > 1 else ''}...")
+    log("INFO", f"Iniciando scraping de detalle de {total_detalle} libros")
+
+    # Selecciona enlaces aleatorios entre todos los encontrados
+    enlaces_detalle = random.sample(enlaces_detalle, total_detalle)
+
+    for enlace in enlaces_detalle:
         try:
-            print(f"\n➡️ Abriendo detalle: {enlace}")
+            print(f"\n➡️  Abriendo detalle: {enlace}")
             log("INFO", f"Abriendo detalle: {enlace}")
 
             driver.get(enlace)
 
-            # Descripción
-            desc_elementos = driver.find_elements(By.CSS_SELECTOR, "#product_description ~ p")
-            descripcion = desc_elementos[0].text if desc_elementos else ""
-            log("DEBUG", f"Descripción obtenida, largo={len(descripcion)}")
+            # ---------- DESCRIPCIÓN ----------
+            descripcion_tag = driver.find_elements(By.CSS_SELECTOR, "#product_description ~ p")
+            descripcion = descripcion_tag[0].text if descripcion_tag else ""
 
-            # UPC
+            # ---------- UPC ----------
             filas = driver.find_elements(By.CSS_SELECTOR, "table.table tr")
-            upc = filas[0].find_elements(By.TAG_NAME, "td")[0].text
+            if filas and filas[0].find_elements(By.TAG_NAME, "td"):
+                upc = filas[0].find_elements(By.TAG_NAME, "td")[0].text
+            else:
+                upc = ""
 
-            # Categoría
-            categoria = driver.find_element(By.CSS_SELECTOR, "ul.breadcrumb li:nth-child(3) a").text
+            # ---------- CATEGORÍA ----------
+            try:
+                categoria_tag = driver.find_element(By.CSS_SELECTOR, "ul.breadcrumb li:nth-child(3) a")
+                categoria = categoria_tag.text
+            except:
+                categoria = ""
 
-            # Título en detalle
-            titulo = driver.find_element(By.TAG_NAME, "h1").text
+            # ---------- TÍTULO EN LA PÁGINA DE DETALLE ----------
+            try:
+                titulo_h1_tag = driver.find_element(By.TAG_NAME, "h1")
+                titulo_h1 = titulo_h1_tag.text
+            except:
+                titulo_h1 = ""
 
-            print(f"   ✏️ Actualizando libro: {titulo}")
-            log("INFO", f"Actualizando detalles de: {titulo}")
+            print(f"   ✏️ Actualizando libro: {titulo_h1}")
+            log("INFO", f"Actualizando detalles de: {titulo_h1}")
             log("DEBUG", f"UPC={upc}, Categoría={categoria}")
-            # Actualizar en la base
-            actualizar_libro(titulo, descripcion, upc, categoria)
+
+            # Actualiza el libro en la base de datos
+            actualizar_libro(titulo_h1, descripcion, upc, categoria)
 
             print("      ✔ Detalles actualizados correctamente")
-            log("INFO", f"Detalles actualizados: {titulo}")
+            log("INFO", f"Detalles actualizados: {titulo_h1}")
 
             esperar()
 
         except Exception as e:
-            print("❌ Error procesando detalle")
+            print(f"❌ Error procesando detalle: {e}")
             log("ERROR", f"Error en detalle Selenium: {e}")
 
+    # Cierra el navegador al finalizar
+    driver.quit()
     print("\n🏁 Scraping Selenium finalizado.")
     log("INFO", "Scraping Selenium finalizado")
-    
-    # Cerrar Selenium
-    driver.quit()
